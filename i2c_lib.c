@@ -20,14 +20,26 @@ i2c_state setupI2CDevice (uint32_t * file, char * device, uint8_t devAddr)
 
 }
 
-// Function to write to an I2C device
+// Function to write a byte to an I2C device
 i2c_state writeI2CByte (uint32_t * file, int8_t* data)
 {
 
 }
 
-// Function to read from an I2C device
+// Function to read a word from an I2C device
 i2c_state readI2CByte (uint32_t * file, int8_t * data)
+{
+
+}
+
+// Function to write a word to an I2C device
+i2c_state writeI2CWord(uint32_t * file, int8_t* data)
+{
+
+}
+
+// Function to read a word from an I2C device
+i2c_state readI2CWord (uint32_t * file, int8_t * data)
 {
 
 }

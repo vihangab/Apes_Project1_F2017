@@ -21,6 +21,9 @@ i2c_state writeI2CByte (uint32_t * file, int8_t * data);
 
 i2c_state readI2CByte (uint32_t * file, int8_t * data);
 
+i2c_state writeI2CWord (uint32_t * file, int8_t * data);
+
+i2c_state readI2CWord (uint32_t * file, int8_t * data);
 
 
 #endif /* I2C_LIB_H_ */
