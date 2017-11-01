@@ -8,12 +8,16 @@
 #include<string.h>
 #include<sys/signal.h>
 #include<sys/time.h>
-#include<sys/time.h>
+#include<stdint.h>
 
 
-#define BUFFER_SIZE 10000
-#define MAX_SEND_BUFFER 10000
+#define MAX_SEND_BUFFER 4096
 #define TICKS 10
+#define QTemp "/temp"
+#define QLight "/light"
+
+pthread_mutex_t tempq_mutex = PTHREAD_MUTEX_INITIALIZER;
+//pthread_mutex_t lightq_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*struct to get temperature data*/
 
@@ -23,31 +27,47 @@
 	GET_LIGHT,
 	LOG_DATA	
 }CMDS;
-
-typedef struct msg_queue
-{
-	enum user_request_id;
-}Msg_Queue;
 */
+typedef enum loglevel
+{
+	INFO,
+	WARNING,
+	ALERT,
+	HEART_BEAT
+}LogLevel; 
+
+typedef struct logger
+{
+	uint32_t timestamp;
+	//uint32_t longlength;
+	uint8_t logId;
+	LogLevel level;
+	uint8_t *payload;
+}LogMsg;
+
 
 
 /* Threads */
-static void *MainThread (void *);
-static void *AnotherThread (void *);
-static void *OneMoreThread (void *);
-void create_timer(void);
+void *TempThread (void *);
+void *LightThread (void *);
+void *LoggerThread (void *);
 
-/* Defines */
-#define MAIN_QNAME "/MainQueue"
-pthread_mutex_t wait_mutex;
-pthread_mutex_t timer_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t timer_cond = PTHREAD_COND_INITIALIZER;
+mqd_t tempqueue_handle;
+//mqd_t lightqueue_handle;
+
+struct mq_attr attr;
+
+
+//void create_timer(void);
+
+//pthread_mutex_t timer_mutex = PTHREAD_MUTEX_INITIALIZER;
+//pthread_cond_t timer_cond = PTHREAD_COND_INITIALIZER;
 
 //timer_val = 10;
 
 
 
-void timer_thread(union sigval arg)
+/*void timer_thread(union sigval arg)
 {
 	int status;
 
@@ -89,7 +109,7 @@ void create_timer(void)
 	ts.it_interval.tv_sec = 0;
 	ts.it_interval.tv_nsec = 0;
 
-	status = timer_create(CLOCK_REALTIME, &se, &timer_id);
+	status = timer_create(ITIMER_REAL, &se, &timer_id);
 	if (status == -1)
 		printf("Create timer error");
 
@@ -98,191 +118,215 @@ void create_timer(void)
 	if (status == -1)
 		printf("Set timer error");
 }
+*/
+void initialize_queue();
 
+void *LoggerThread(void *args)
+{
+
+	uint32_t temp_data;
+	//uint32_t light_data;
+	uint32_t ret; 
+	uint32_t bytes_read;
+	LogMsg *logmsg3 = (LogMsg *)malloc(sizeof(LogMsg));
+
+	while(1)
+	{
+		
+		ret = pthread_mutex_trylock(&tempq_mutex);
+		if(ret == 0)
+		{
+			mq_getattr(tempqueue_handle, &attr);
+			while(attr.mq_curmsgs > 0)
+			{
+				bytes_read = mq_receive(tempqueue_handle, (char *)&logmsg3, MAX_SEND_BUFFER, &temp_data);
+				//printf("Bytes received = %d\n",bytes_read);
+				//printf("Size of  = %ld\n",sizeof(LogMsg));
+				if (bytes_read == -1)
+				{
+					perror("[LoggerThread] Failed to recieve:");
+				}	
+				else
+				{
+					printf ("[LoggerThread] Log ID: %d \n", logmsg3->logId);
+					printf ("[LoggerThread] Timestamp: %d \n", logmsg3->timestamp);
+					printf ("[LoggerThread] Log Level: %d \n", logmsg3->level);
+					printf ("[LoggerThread] Payload: %s \n", logmsg3->payload);
+					
+					// Get the attributes
+					mq_getattr(tempqueue_handle, &attr);
+					printf("[LoggerThread] Queue %s currently holds %ld messages\n",QTemp,attr.mq_curmsgs);   
+
+						// Clear buffer
+						
+					//memset(buffer, 0, MAX_SEND_BUFFER); 
+					memset(logmsg3, 0, sizeof(logmsg3));
+					
+				}
+			}
+			pthread_mutex_unlock(&tempq_mutex);
+			
+			sleep(1);
+		}
+		
+		/*
+		ret = pthread_mutex_trylock(&lightq_mutex);
+		if(ret == 0)
+		{
+			mq_getattr(lightqueue_handle, &attr);
+			while(attr.mq_curmsgs > 0)
+			{
+				bytes_read = mq_receive(lightqueue_handle, buffer, MAX_SEND_BUFFER, &light_data);
+				if (bytes_read == -1)
+				{
+					perror("[LoggerThread] Failed to recieve:");
+					return 0;
+				}	
+				else
+				{
+					printf ("[LoggerThread] Data: %s \n", buffer);   
+					// Get the attributes
+					mq_getattr(lightqueue_handle, &attr);
+					printf("[LoggerThread] Queue %s currently holds %ld messages\n",QLight,attr.mq_curmsgs);   
+
+						// Clear buffer
+						
+					memset(buffer, 0, MAX_SEND_BUFFER); 
+				}
+			}
+			pthread_mutex_unlock(&lightq_mutex);
+			sleep(1);
+		}*/	
+	}
+	
+}
+
+void *TempThread (void *args)
+{
+
+	char buffer[MAX_SEND_BUFFER];
+	LogMsg *logmsg1 = (LogMsg *)malloc(sizeof(LogMsg));
+	memset(logmsg1, 0, sizeof(logmsg1));
+	unsigned int msgprio = 1;
+	uint32_t bytes_sent=0;
+	
+	//int count=0;
+
+	while(1)
+	{
+
+		logmsg1->timestamp = 123456789;
+		logmsg1->logId = 0;
+		logmsg1->level = WARNING;
+		
+		snprintf (buffer, MAX_SEND_BUFFER, "Message from Temp thread");
+		
+		//printf ("Message from Temp thread %s\n",logmsg1->payload);
+		logmsg1->payload = buffer;
+		pthread_mutex_lock (&tempq_mutex);
+		//printf("Size of  sent logmsg 1= %ld\n",sizeof(logmsg1));
+		
+		if ((bytes_sent = mq_send (tempqueue_handle,(const char*)&logmsg1, sizeof(logmsg1), msgprio)) != 0)
+		{
+			perror ("[TempThread] Sending:");
+		}
+		//printf("Bytes sent = %d\n",bytes_sent);
+		pthread_mutex_unlock (&tempq_mutex);
+		//count++;
+		sleep(1);
+	} 
+}
+
+
+void *LightThread (void *args)
+{
+	char buffer[MAX_SEND_BUFFER];
+	unsigned int msgprio = 2;
+	uint32_t bytes_sent=0;
+
+	LogMsg *logmsg2 = (LogMsg *)malloc(sizeof(LogMsg));
+	memset(logmsg2, 0, sizeof(logmsg2));
+
+	//int count = 0;
+	
+
+	while(1)
+	{
+		logmsg2->timestamp = 123456790;
+		logmsg2->logId = 1;
+		logmsg2->level = WARNING;
+
+		snprintf (buffer, MAX_SEND_BUFFER, "Message from Light thread");
+		//printf ("Message from Light thread %s \n",logmsg2->payload);
+		logmsg2->payload = buffer;
+		
+		//pthread_mutex_lock (&lightq_mutex);
+		//printf("Size of  sent logmsg 2= %ld\n",sizeof(logmsg2));
+		pthread_mutex_lock (&tempq_mutex);
+		if ((bytes_sent = mq_send (tempqueue_handle,(const char*)&logmsg2, sizeof(logmsg2), msgprio)) != 0) //can be changed later to light queue handle
+		{
+
+			perror ("[LightThread] Sending:");
+		}
+		pthread_mutex_unlock (&tempq_mutex);
+		//pthread_mutex_unlock (&lightq_mutex); 
+		//count++;
+		sleep(1);
+	} 
+	
+}
+void initialize_queue()
+{
+	// unlink the queue if it exists - debug
+	mq_unlink (QTemp);
+	mq_unlink (QLight);
+	attr.mq_maxmsg = 20;
+	attr.mq_msgsize = MAX_SEND_BUFFER;
+	attr.mq_flags = 0;
+
+	
+	tempqueue_handle=  mq_open(QTemp,O_RDWR | O_CREAT,0666,&attr);
+
+	//lightqueue_handle=  mq_open(QLight,O_RDWR | O_CREAT,0666,&attr);
+
+	if (tempqueue_handle == -1)
+	{
+		perror ("[TempThread] Error Opening TempQ:");
+	} 
+
+	/*if (lightqueue_handle == -1)
+	{
+		perror ("[LightThread] Error Opening LightQ: ");
+	} */
+}
 
 
 int main()
 {
-	pthread_t mainThread, anotherThread,onemoreThread;
-	int i = 10;
-	pthread_mutex_init (&wait_mutex, NULL);
-	printf ("Creating threads .. \n");
+	pthread_t tempThread, lightThread,loggerThread;
 	
-	pthread_create (&mainThread,    NULL, &MainThread,    NULL);
+	initialize_queue();
+	
 	sleep(1);
-	pthread_create (&anotherThread, NULL, &AnotherThread, NULL);
-	pthread_create (&onemoreThread, NULL, &OneMoreThread, NULL);
 	
-	create_timer();
+	pthread_create(&tempThread,NULL,&TempThread,NULL);
+	pthread_create(&lightThread,NULL,&LightThread,NULL);
+	pthread_create(&loggerThread,NULL,&LoggerThread,NULL);
+	
+	//create_timer();
 
-	while(i-- > 0)
+	/*while(i-- > 0)
 	{
 		printf("waiting for timer signal condtion wait\n");
 		pthread_cond_wait(&timer_cond, &timer_mutex);
-	}
+	}*/
 	
-	printf("Receiver timer signal\n");
-	pthread_join (mainThread,    NULL);
-	pthread_join (anotherThread, NULL);
-	pthread_join (onemoreThread, NULL);
-	return 0;
-}
-
-
-/* Main thread .. Waiting for messages */
-void *MainThread (void *args)
-{
-
-	mqd_t queue_handle;
-	char buffer[BUFFER_SIZE];
-	int bytes_read;
-
-	struct mq_attr msgq_attr;
-	unsigned int sender;
-
-	printf ("[MainThread] Inside main thread \n");
-	// Let the other thread wait till I am ready! 
-	pthread_mutex_lock (&wait_mutex);
-
-	// Clear the buffer
-	memset (buffer, 0, BUFFER_SIZE);
-
-	// unlink the queue if it exisits - debug
-	mq_unlink (MAIN_QNAME);
-
-
-	printf ("[MainThread]Opening MQ \n"); 
-	queue_handle=  mq_open(MAIN_QNAME, O_RDWR | O_CREAT, S_IRWXU | S_IRWXG, NULL);
-
-	if (queue_handle == -1)
-	{
-		perror ("[MainThread] Error Opening MQ: ");
-		return 0;
-	} 
-
-	printf ("[MainThread] Waiting for messages ... \n"); 
-	pthread_mutex_unlock (&wait_mutex);
-
-
-	for (; ;)
-	{
-		bytes_read = mq_receive(queue_handle, buffer, BUFFER_SIZE, &sender);
-		//printf ("Received %s \n", buffer);
-
-		if (bytes_read == -1)
-		{
-			perror("[MainThread] Failed to recieve:");
-			return 0;
-		}
-
-		else
-		{
-			printf ("[MainThread] Data: %s \n", buffer);   
-			// Get the MQ attributes
-			mq_getattr(queue_handle, &msgq_attr);
-			printf("[MainThread] Queue \"%s\":\n"
-					"\t- currently holds %ld messages\n",
-			   MAIN_QNAME,  
-			   msgq_attr.mq_curmsgs);   
-
-				// Clear buffer and sleep to block for some time t and see 
-				// if you get all the messages!	
-
-				memset(buffer, 0, BUFFER_SIZE); 
-				//sleep(1);
-		}  
-	} 
-	mq_close (queue_handle);
-}
-
-
-
-void *AnotherThread (void *args)
-{
-
-	mqd_t queue_handle;
-	char buffer[MAX_SEND_BUFFER];
-	unsigned int msgprio = 1;
-
-	int count;
-
-	printf ("[AnotherThread] Inside Another thread \n");
+	pthread_join (tempThread,NULL);
+	mq_close (tempqueue_handle); 
 	
-	//sleep(1);
+	pthread_join (lightThread, NULL);
+	//mq_close (lightqueue_handle);
 	
-	queue_handle=  mq_open(MAIN_QNAME, O_RDWR);
-	if (queue_handle == -1)
-	{
-		perror ("[AnotherThread] Error Opening MQ:");
-		return 0;
-	}
-
-	for (count = 1; count <= 5; count++)
-	{
-
-		snprintf (buffer, MAX_SEND_BUFFER, "Message %d from Another thread", count);
-		
-		pthread_mutex_lock (&wait_mutex);
-		
-		if (0 != mq_send (queue_handle, buffer, strlen(buffer)+1, msgprio))
-		{
-
-			perror ("[AnotherThread] Sending:");
-			mq_close (queue_handle); 
-			return 0;
-		}
-		pthread_mutex_unlock (&wait_mutex); 
-		sleep(2);
-	} 
-
-	
-	mq_close (queue_handle); 
-
-	return 0;
-}
-
-
-void *OneMoreThread (void *args)
-{
-
-	mqd_t queue_handle;
-	char buffer[MAX_SEND_BUFFER];
-	unsigned int msgprio = 2;
-
-	int count;
-
-	printf ("[OneMoreThread] Inside One More thread \n");
-	//sleep(1);
-	
-
-	queue_handle=  mq_open(MAIN_QNAME, O_RDWR);
-	if (queue_handle == -1)
-	{
-
-		perror ("[AnotherThread] Error Opening MQ:");
-		return 0;
-	}
-
-	for (count = 1; count <= 5; count++)
-	{
-
-		snprintf (buffer, MAX_SEND_BUFFER, "Message %d from One more thread", count+100);
-		
-		pthread_mutex_lock (&wait_mutex);
-		if (0 != mq_send (queue_handle, buffer, strlen(buffer)+1, msgprio))
-		{
-
-			perror ("[AnotherThread] Sending:");
-			mq_close (queue_handle); 
-
-			return 0;
-		}
-		pthread_mutex_unlock (&wait_mutex); 
-		sleep(1);
-	} 
-
-	
-	mq_close (queue_handle); 
-
+	pthread_join (loggerThread, NULL);
 	return 0;
 }
