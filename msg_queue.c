@@ -46,7 +46,6 @@ typedef struct logger
 }LogMsg;
 
 
-
 /* Threads */
 void *TempThread (void *);
 void *LightThread (void *);
