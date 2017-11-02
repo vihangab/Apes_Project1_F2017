@@ -1,98 +1,91 @@
-#include<pthread.h>
-#include<stdio.h>
-#include<stdlib.h>
-#include<unistd.h>
-#include<mqueue.h>
-#include<sys/stat.h>
-#include<errno.h>
-#include<string.h>
-#include<sys/signal.h>
-#include<sys/time.h>
-#include<stdint.h>
+#include"msg_queue.h"
 
-
-#define MAX_SEND_BUFFER 4096
-#define TICKS 10
-#define QTemp "/temp"
-#define QLight "/light"
-
-pthread_mutex_t tempq_mutex = PTHREAD_MUTEX_INITIALIZER;
-//pthread_mutex_t lightq_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-/*struct to get temperature data*/
-
-/*typedef enum
+void sighandler_sigint(int signum)
 {
-	GET_TEMP_C,
-	GET_LIGHT,
-	LOG_DATA	
-}CMDS;
-*/
-typedef enum loglevel
-{
-	INFO,
-	WARNING,
-	ALERT,
-	HEART_BEAT
-}LogLevel; 
-
-typedef struct logger
-{
-	uint32_t timestamp;
-	//uint32_t longlength;
-	uint8_t logId;
-	LogLevel level;
-	uint8_t *payload;
-}LogMsg;
-
-
-/* Threads */
-void *TempThread (void *);
-void *LightThread (void *);
-void *LoggerThread (void *);
-
-mqd_t tempqueue_handle;
-//mqd_t lightqueue_handle;
-
-struct mq_attr attr;
-
-
-//void create_timer(void);
-
-//pthread_mutex_t timer_mutex = PTHREAD_MUTEX_INITIALIZER;
-//pthread_cond_t timer_cond = PTHREAD_COND_INITIALIZER;
-
-//timer_val = 10;
-
-
-
-/*void timer_thread(union sigval arg)
-{
-	int status;
-
-	status = pthread_mutex_lock(&timer_mutex);
-	if (status != 0)
-		printf("Lock mutex error\n");
-
-	printf("Timer expire signal to main thread \n");
+	printf("Caught signal %d, coming out...\n", signum);
 	
-	status = pthread_cond_signal(&timer_cond);
-	if (status != 0)
+	flag_cond = 1;	//set exit flag for all threads
+	
+	int32_t retval = pthread_cond_broadcast(&condvar);
+	if(retval != 0)
 	{
-	  printf("Signal condition error\n");
+		printf("condition signal failed, error code - %d\n", retval);
+	}
+	retval = pthread_join(tempThread,NULL);
+	if(retval != 0)
+	{
+		printf("pthread join failed, error code - %d\n", retval);
+	}
+	
+	retval = pthread_join(lightThread,NULL);
+	if(retval != 0)
+	{
+		printf("pthread join failed, error code - %d\n", retval);
+	}
+	
+	retval = pthread_join(loggerThread,NULL);
+	if(retval != 0)
+	{
+		printf("pthread join failed, error code - %d\n", retval);
+	}
+	
+	retval = pthread_mutex_destroy(&timer_mutex);
+	if(retval != 0)
+	{
+		printf("mutex destroy failed, error code - %d\n", retval);
+	}
+	
+	retval = pthread_mutex_destroy(&tempq_mutex);
+	if(retval != 0)
+	{
+		printf("mutex destroy failed, error code - %d\n", retval);
+	}
+	retval =  pthread_cond_destroy(&condvar);
+	if(retval != 0)
+	{
+		printf("cond destroy failed, error code - %d\n", retval);
 	}
 
-	status = pthread_mutex_unlock(&timer_mutex);
-	if (status != 0)
-			printf("Unlock mutex error\n");
+	//exit(0);
+}
+
+void timer_thread(union sigval arg)
+{
 	
-	create_timer(); //change this value
+	int32_t ret;
+	if(flag_cond == 0)
+	{
+		ret = pthread_mutex_lock(&timer_mutex);
+		if (ret != 0)
+			printf("Mutex timer lock mutex error\n");
+
+		printf("Timer expire signal to main thread \n");
+		
+		flag_cond = 2;
+		ret = pthread_cond_broadcast(&condvar);
+		if (ret != 0)
+		{
+		  printf("Signal condition error\n");
+		}
+
+		ret = pthread_mutex_unlock(&timer_mutex);
+		if (ret != 0)
+				printf("Timer mutex Unlock mutex error\n");
+			
+		
+		create_timer(); //change this value
+	}
+	else if(flag_cond == 1)
+	{
+		printf("Timer stopped\n");
+		pthread_mutex_unlock(&timer_mutex);
+	}
 }
 
 void create_timer(void)
 {
 	timer_t timer_id;
-	int status;
+	int32_t ret;
 	struct itimerspec ts;
 	struct sigevent se;
 	long long nanosecs = TICKS * 100;
@@ -104,21 +97,20 @@ void create_timer(void)
 	se.sigev_notify_attributes = NULL;
 
 	ts.it_value.tv_sec = nanosecs / 1000000000;
-	ts.it_value.tv_nsec = nanosecs % 1000000000;
+	ts.it_value.tv_nsec = nanosecs % 1000000000;//TICKS * 100 * 100 ;
 	ts.it_interval.tv_sec = 0;
-	ts.it_interval.tv_nsec = 0;
+	ts.it_interval.tv_nsec = 0;//usecs % (100 * 100);
 
-	status = timer_create(ITIMER_REAL, &se, &timer_id);
-	if (status == -1)
+	ret = timer_create(ITIMER_REAL, &se, &timer_id);
+	if (ret== -1)
 		printf("Create timer error");
 
 	
-	status = timer_settime(timer_id, 0, &ts, 0);
-	if (status == -1)
+	ret = timer_settime(timer_id, 0, &ts, 0);
+	if (ret == -1)
 		printf("Set timer error");
 }
-*/
-void initialize_queue();
+
 
 void *LoggerThread(void *args)
 {
@@ -130,42 +122,54 @@ void *LoggerThread(void *args)
 	LogMsg *logmsg3 = (LogMsg *)malloc(sizeof(LogMsg));
 
 	while(1)
-	{
-		
+	{	
 		ret = pthread_mutex_trylock(&tempq_mutex);
+
 		if(ret == 0)
 		{
-			mq_getattr(tempqueue_handle, &attr);
-			while(attr.mq_curmsgs > 0)
-			{
-				bytes_read = mq_receive(tempqueue_handle, (char *)&logmsg3, MAX_SEND_BUFFER, &temp_data);
-				//printf("Bytes received = %d\n",bytes_read);
-				//printf("Size of  = %ld\n",sizeof(LogMsg));
-				if (bytes_read == -1)
-				{
-					perror("[LoggerThread] Failed to recieve:");
-				}	
-				else
-				{
-					printf ("[LoggerThread] Log ID: %d \n", logmsg3->logId);
-					printf ("[LoggerThread] Timestamp: %d \n", logmsg3->timestamp);
-					printf ("[LoggerThread] Log Level: %d \n", logmsg3->level);
-					printf ("[LoggerThread] Payload: %s \n", logmsg3->payload);
-					
-					// Get the attributes
-					mq_getattr(tempqueue_handle, &attr);
-					printf("[LoggerThread] Queue %s currently holds %ld messages\n",QTemp,attr.mq_curmsgs);   
-
-						// Clear buffer
-						
-					//memset(buffer, 0, MAX_SEND_BUFFER); 
-					memset(logmsg3, 0, sizeof(logmsg3));
-					
-				}
-			}
-			pthread_mutex_unlock(&tempq_mutex);
+			//keep waiting for timer signal 
+			pthread_cond_wait(&condvar,&tempq_mutex);
 			
-			sleep(1);
+			if(flag_cond == 2)
+			{
+				mq_getattr(tempqueue_handle, &attr);
+				while(attr.mq_curmsgs > 0)
+				{
+					bytes_read = mq_receive(tempqueue_handle, (char *)&logmsg3, MAX_SEND_BUFFER, &temp_data);
+					//printf("Bytes received = %d\n",bytes_read);
+					//printf("Size of  = %ld\n",sizeof(LogMsg));
+					if (bytes_read == -1)
+					{
+						perror("[LoggerThread] Failed to recieve:");
+					}	
+					else
+					{
+						printf ("[LoggerThread] Log ID: %d \n", logmsg3->logId);
+						printf ("[LoggerThread] Timestamp: %d \n", logmsg3->timestamp);
+						printf ("[LoggerThread] Log Level: %d \n", logmsg3->level);
+						printf ("[LoggerThread] Payload: %s \n", logmsg3->payload);
+						
+						// Get the attributes
+						mq_getattr(tempqueue_handle, &attr);
+						printf("[LoggerThread] Queue %s currently holds %ld messages\n",QTemp,attr.mq_curmsgs);   
+
+							// Clear buffer
+							
+						//memset(buffer, 0, MAX_SEND_BUFFER); 
+						memset(logmsg3, 0, sizeof(logmsg3));
+						
+					}
+				}
+				pthread_mutex_unlock(&tempq_mutex);
+			}
+			
+			if(flag_cond == 1)
+			{
+				mq_close (tempqueue_handle);
+				pthread_mutex_unlock(&tempq_mutex);
+				break;
+			}
+			
 		}
 		
 		/*
@@ -223,16 +227,29 @@ void *TempThread (void *args)
 		//printf ("Message from Temp thread %s\n",logmsg1->payload);
 		logmsg1->payload = buffer;
 		pthread_mutex_lock (&tempq_mutex);
-		//printf("Size of  sent logmsg 1= %ld\n",sizeof(logmsg1));
 		
-		if ((bytes_sent = mq_send (tempqueue_handle,(const char*)&logmsg1, sizeof(logmsg1), msgprio)) != 0)
+		//keep waiting for timer signal 
+		pthread_cond_wait(&condvar,&tempq_mutex);
+		if(flag_cond == 2)
 		{
-			perror ("[TempThread] Sending:");
+		
+			//printf("Size of  sent logmsg 1= %ld\n",sizeof(logmsg1));
+			
+			if ((bytes_sent = mq_send (tempqueue_handle,(const char*)&logmsg1, sizeof(logmsg1), msgprio)) != 0)
+			{
+				perror ("[TempThread] Sending:");
+			}
+			//printf("Bytes sent = %d\n",bytes_sent);
+			pthread_mutex_unlock (&tempq_mutex);
+			
 		}
-		//printf("Bytes sent = %d\n",bytes_sent);
-		pthread_mutex_unlock (&tempq_mutex);
-		//count++;
-		sleep(1);
+		
+		if(flag_cond == 1)
+		{
+			mq_close (tempqueue_handle);
+			pthread_mutex_unlock(&tempq_mutex);
+			break;
+		}
 	} 
 }
 
@@ -261,16 +278,25 @@ void *LightThread (void *args)
 		
 		//pthread_mutex_lock (&lightq_mutex);
 		//printf("Size of  sent logmsg 2= %ld\n",sizeof(logmsg2));
-		pthread_mutex_lock (&tempq_mutex);
-		if ((bytes_sent = mq_send (tempqueue_handle,(const char*)&logmsg2, sizeof(logmsg2), msgprio)) != 0) //can be changed later to light queue handle
+		pthread_mutex_lock(&tempq_mutex);
+		
+		//keep waiting for timer signal 
+		pthread_cond_wait(&condvar,&tempq_mutex);
+		if(flag_cond == 2)
 		{
-
-			perror ("[LightThread] Sending:");
+			if ((bytes_sent = mq_send (tempqueue_handle,(const char*)&logmsg2, sizeof(logmsg2), msgprio)) != 0) //can be changed later to light queue handle
+			{
+				perror ("[LightThread] Sending:");
+			}
+			pthread_mutex_unlock (&tempq_mutex);
 		}
-		pthread_mutex_unlock (&tempq_mutex);
-		//pthread_mutex_unlock (&lightq_mutex); 
-		//count++;
-		sleep(1);
+		
+		if(flag_cond == 1)
+		{
+			mq_close (tempqueue_handle);
+			pthread_mutex_unlock(&tempq_mutex);
+			break;
+		}
 	} 
 	
 }
@@ -302,30 +328,17 @@ void initialize_queue()
 
 int main()
 {
-	pthread_t tempThread, lightThread,loggerThread;
 	
+	pthread_mutex_init(&tempq_mutex,NULL);
+	pthread_mutex_init(&timer_mutex,NULL);
+	pthread_cond_init(&condvar,NULL);
 	initialize_queue();
-	
-	sleep(1);
 	
 	pthread_create(&tempThread,NULL,&TempThread,NULL);
 	pthread_create(&lightThread,NULL,&LightThread,NULL);
 	pthread_create(&loggerThread,NULL,&LoggerThread,NULL);
 	
-	//create_timer();
-
-	/*while(i-- > 0)
-	{
-		printf("waiting for timer signal condtion wait\n");
-		pthread_cond_wait(&timer_cond, &timer_mutex);
-	}*/
+	create_timer();
 	
-	pthread_join (tempThread,NULL);
-	mq_close (tempqueue_handle); 
-	
-	pthread_join (lightThread, NULL);
-	//mq_close (lightqueue_handle);
-	
-	pthread_join (loggerThread, NULL);
 	return 0;
 }
