@@ -1,4 +1,4 @@
-#include"msg_queue.h"
+#include "msg_queue.h"
 
 void sighandler_sigint(int signum)
 {
@@ -29,12 +29,6 @@ void sighandler_sigint(int signum)
 		printf("pthread join failed, error code - %d\n", retval);
 	}
 	
-	retval = pthread_mutex_destroy(&timer_mutex);
-	if(retval != 0)
-	{
-		printf("mutex destroy failed, error code - %d\n", retval);
-	}
-	
 	retval = pthread_mutex_destroy(&tempq_mutex);
 	if(retval != 0)
 	{
@@ -45,70 +39,35 @@ void sighandler_sigint(int signum)
 	{
 		printf("cond destroy failed, error code - %d\n", retval);
 	}
-
-	//exit(0);
+	exit(0);
 }
 
-void timer_thread(union sigval arg)
+void timer_handler(int signum)
 {
-	
+	static uint32_t count = 0;
+	printf("timer expired %d\n",count++);
 	int32_t ret;
-	if(flag_cond == 0)
-	{
-		ret = pthread_mutex_lock(&timer_mutex);
-		if (ret != 0)
-			printf("Mutex timer lock mutex error\n");
-
-		printf("Timer expire signal to main thread \n");
-		
-		flag_cond = 2;
-		ret = pthread_cond_broadcast(&condvar);
-		if (ret != 0)
-		{
-		  printf("Signal condition error\n");
-		}
-
-		ret = pthread_mutex_unlock(&timer_mutex);
-		if (ret != 0)
-				printf("Timer mutex Unlock mutex error\n");
-			
-		
-		create_timer(); //change this value
-	}
-	else if(flag_cond == 1)
-	{
-		printf("Timer stopped\n");
-		pthread_mutex_unlock(&timer_mutex);
-	}
+	printf("inside	timer thread \n");
+	flag_cond = 2;
+	ret = pthread_cond_broadcast(&condvar);
 }
 
-void create_timer(void)
+void create_timer()
 {
-	timer_t timer_id;
-	int32_t ret;
-	struct itimerspec ts;
-	struct sigevent se;
-	long long nanosecs = TICKS * 100;
+	struct sigaction sa;
+	struct itimerval timer;
 
+	memset(&sa,0,sizeof(sa));
+	sa.sa_handler = &timer_handler;
+	sigaction(SIGALRM, &sa, NULL);
 
-	se.sigev_notify = SIGEV_THREAD;
-	se.sigev_value.sival_ptr = &timer_id;
-	se.sigev_notify_function = timer_thread;
-	se.sigev_notify_attributes = NULL;
+	timer.it_value.tv_sec = 0;
+	timer.it_value.tv_usec = 500000;
 
-	ts.it_value.tv_sec = nanosecs / 1000000000;
-	ts.it_value.tv_nsec = nanosecs % 1000000000;//TICKS * 100 * 100 ;
-	ts.it_interval.tv_sec = 0;
-	ts.it_interval.tv_nsec = 0;//usecs % (100 * 100);
+	timer.it_interval.tv_sec = 0;
+	timer.it_interval.tv_usec = 500000;
 
-	ret = timer_create(ITIMER_REAL, &se, &timer_id);
-	if (ret== -1)
-		printf("Create timer error");
-
-	
-	ret = timer_settime(timer_id, 0, &ts, 0);
-	if (ret == -1)
-		printf("Set timer error");
+	setitimer(ITIMER_REAL, &timer, NULL);
 }
 
 
@@ -120,9 +79,11 @@ void *LoggerThread(void *args)
 	uint32_t ret; 
 	uint32_t bytes_read;
 	LogMsg *logmsg3 = (LogMsg *)malloc(sizeof(LogMsg));
-
+	
+	//printf("inside logger before its while\n");
 	while(1)
 	{	
+		//printf("inside	while of logger thread \n");
 		ret = pthread_mutex_trylock(&tempq_mutex);
 
 		if(ret == 0)
@@ -145,7 +106,7 @@ void *LoggerThread(void *args)
 					else
 					{
 						printf ("[LoggerThread] Log ID: %d \n", logmsg3->logId);
-						printf ("[LoggerThread] Timestamp: %d \n", logmsg3->timestamp);
+						printf ("[LoggerThread] Timestamp: %s \n", logmsg3->timestamp);
 						printf ("[LoggerThread] Log Level: %d \n", logmsg3->level);
 						printf ("[LoggerThread] Payload: %s \n", logmsg3->payload);
 						
@@ -165,7 +126,7 @@ void *LoggerThread(void *args)
 			
 			if(flag_cond == 1)
 			{
-				mq_close (tempqueue_handle);
+				mq_close(tempqueue_handle);
 				pthread_mutex_unlock(&tempq_mutex);
 				break;
 			}
@@ -204,7 +165,7 @@ void *LoggerThread(void *args)
 	
 }
 
-void *TempThread (void *args)
+void *TempThread(void *args)
 {
 
 	char buffer[MAX_SEND_BUFFER];
@@ -212,13 +173,14 @@ void *TempThread (void *args)
 	memset(logmsg1, 0, sizeof(logmsg1));
 	unsigned int msgprio = 1;
 	uint32_t bytes_sent=0;
-	
-	//int count=0;
+	//printf("inside logger before its while\n");
 
 	while(1)
 	{
-
-		logmsg1->timestamp = 123456789;
+		//printf("inside	while of temp thread \n");
+		//generate timestamp string
+		time_t curr_time = time(NULL);
+		logmsg1->timestamp = ctime(&curr_time);
 		logmsg1->logId = 0;
 		logmsg1->level = WARNING;
 		
@@ -254,7 +216,7 @@ void *TempThread (void *args)
 }
 
 
-void *LightThread (void *args)
+void *LightThread(void *args)
 {
 	char buffer[MAX_SEND_BUFFER];
 	unsigned int msgprio = 2;
@@ -263,12 +225,14 @@ void *LightThread (void *args)
 	LogMsg *logmsg2 = (LogMsg *)malloc(sizeof(LogMsg));
 	memset(logmsg2, 0, sizeof(logmsg2));
 
-	//int count = 0;
-	
+	//printf("inside logger before its while\n");
 
 	while(1)
 	{
-		logmsg2->timestamp = 123456790;
+		//printf("inside	while of light thread \n");
+		//generate timestamp string
+		time_t curr_time = time(NULL);
+		logmsg2->timestamp = ctime(&curr_time);
 		logmsg2->logId = 1;
 		logmsg2->level = WARNING;
 
@@ -300,6 +264,7 @@ void *LightThread (void *args)
 	} 
 	
 }
+
 void initialize_queue()
 {
 	// unlink the queue if it exists - debug
@@ -328,17 +293,16 @@ void initialize_queue()
 
 int main()
 {
-	
-	pthread_mutex_init(&tempq_mutex,NULL);
-	pthread_mutex_init(&timer_mutex,NULL);
-	pthread_cond_init(&condvar,NULL);
 	initialize_queue();
-	
+	signal(SIGINT, sighandler_sigint);
+
 	pthread_create(&tempThread,NULL,&TempThread,NULL);
 	pthread_create(&lightThread,NULL,&LightThread,NULL);
 	pthread_create(&loggerThread,NULL,&LoggerThread,NULL);
-	
+
 	create_timer();
+
+	while(1);
 	
 	return 0;
 }
