@@ -10,14 +10,11 @@
 #include<sys/time.h>
 #include<stdint.h>
 #include<sys/types.h>
-#include<sys/time.h>
 #include<time.h>
-
 
 /*definitions */
 
 #define MAX_SEND_BUFFER 4096
-#define TICKS 1000000
 #define QTemp "/temp"
 #define QLight "/light"
 
@@ -30,10 +27,10 @@ mqd_t tempqueue_handle;
 //mqd_t lightqueue_handle;
 struct mq_attr attr;
 
-
 /*global variables */
 sig_atomic_t flag_cond = 0;
-pthread_t tempThread, lightThread,loggerThread;
+
+
 //uint32_t timer_count = 10;
 
 /*Structure definitions*/
@@ -55,17 +52,19 @@ typedef enum loglevel
 
 typedef struct logger
 {
-	uint32_t timestamp;
-	//uint32_t longlength;
+	uint8_t *timestamp;
 	uint8_t logId;
-	LogLevel level;
 	uint8_t *payload;
+	LogLevel level;
+	//uint32_t longlength;
 }LogMsg;
 
 
 /* Function declarations */
-void *TempThread (void *);
-void *LightThread (void *);
-void *LoggerThread (void *);
-void create_timer(void);
+void *TempThread(void *);
+void *LightThread(void *);
+void *LoggerThread(void *);
+void create_timer();
 void initialize_queue();
+void sighandler_sigint(int signum);
+pthread_t tempThread, lightThread,loggerThread;
