@@ -1,5 +1,5 @@
 /****************************************************
-Name - i2c_lib.cab
+Name - i2c_lib.c
 Author - Virag Gada and Vihanga Bare
 Description - Source file for out I2C library
 *****************************************************/
@@ -15,9 +15,9 @@ Description - Source file for out I2C library
 #include "i2c_lib.h"
 
 // Function to setup an I2C device
-i2c_state setupI2CDevice (uint32_t * file, char * device, uint8_t devAddr)
+i2c_state setupI2CDevice (uint32_t * file, char * bus, uint8_t devAddr)
 {
-  if ((*file = open(device, O_RDWR)) < 0)
+  if ((*file = open(bus, O_RDWR)) < 0)
   {
     printf("Failed to open the i2c bus\n");
     return ERROR;
@@ -32,7 +32,7 @@ i2c_state setupI2CDevice (uint32_t * file, char * device, uint8_t devAddr)
 }
 
 // Function to write a byte to an I2C device
-i2c_state writeI2CByte (uint32_t * file, int8_t* data)
+i2c_state writeI2CByte (uint32_t * file, uint8_t* data)
 {
   if (write(*file,data,1) != 1)
   {
@@ -44,7 +44,7 @@ i2c_state writeI2CByte (uint32_t * file, int8_t* data)
 }
 
 // Function to read a byte from an I2C device
-i2c_state readI2CByte (uint32_t * file, int8_t * data)
+i2c_state readI2CByte (uint32_t * file, uint8_t * data)
 {
   if(read(*file, data, 1)!=1)
   {
@@ -55,7 +55,7 @@ i2c_state readI2CByte (uint32_t * file, int8_t * data)
 }
 
 // Function to write a word to an I2C device
-i2c_state writeI2CWord(uint32_t * file, int8_t* data)
+i2c_state writeI2CWord(uint32_t * file, uint8_t* data)
 {
   if (write(*file,data,2) != 2)
   {
@@ -67,7 +67,7 @@ i2c_state writeI2CWord(uint32_t * file, int8_t* data)
 }
 
 // Function to read a word from an I2C device
-i2c_state readI2CWord (uint32_t * file, int8_t * data)
+i2c_state readI2CWord (uint32_t * file, uint8_t * data)
 {
   if(read(*file, data, 2)!=2)
   {
@@ -77,3 +77,13 @@ i2c_state readI2CWord (uint32_t * file, int8_t * data)
   return SUCCESS;
 }
 
+// Function to read a word from an I2C device
+i2c_state readI2CDWord (uint32_t * file, uint8_t * data)
+{
+  if(read(*file, data, 4)!=4)
+  {
+    printf("Failed to read in the buffer\n");
+    return ERROR;
+  }
+  return SUCCESS;
+}
