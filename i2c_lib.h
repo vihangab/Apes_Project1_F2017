@@ -8,11 +8,12 @@
 typedef enum i2c_states
 {
   SUCCESS,
-  ERROR,
-  ACK,
-  NACK,
+  ERROR_READ,
+  ERROR_WRITE,
+  ERROR_OPEN,
+  ERROR_ADDRESS,
+  ERROR_VALUE,
   NULL_POINTER,
-  AVAILABLE
 }i2c_state;
 
 i2c_state setupI2CDevice (uint32_t * file, char * bus , uint8_t devAddr);

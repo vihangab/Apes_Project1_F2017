@@ -20,13 +20,13 @@ i2c_state setupI2CDevice (uint32_t * file, char * bus, uint8_t devAddr)
   if ((*file = open(bus, O_RDWR)) < 0)
   {
     printf("Failed to open the i2c bus\n");
-    return ERROR;
+    return ERROR_OPEN;
   }
   else if (ioctl(*file, I2C_SLAVE, devAddr) < 0)
     {
       printf("Failed to acquire bus access and/or talk to slave.\n");
       /* ERROR HANDLING; you can check errno to see what went wrong */
-      return ERROR;
+      return ERROR_ADDRESS;
     }
   return SUCCESS;
 }
@@ -38,7 +38,7 @@ i2c_state writeI2CByte (uint32_t * file, uint8_t* data)
   {
     /* ERROR HANDLING: i2c transaction failed */
     printf("Failed to write to the i2c bus.\n");
-    return ERROR;
+    return ERROR_WRITE;
   }
   return SUCCESS;
 }
@@ -49,7 +49,7 @@ i2c_state readI2CByte (uint32_t * file, uint8_t * data)
   if(read(*file, data, 1)!=1)
   {
     printf("Failed to read in the buffer\n");
-    return ERROR;
+    return ERROR_READ;
   }
   return SUCCESS;
 }
@@ -61,7 +61,7 @@ i2c_state writeI2CWord(uint32_t * file, uint8_t* data)
   {
     /* ERROR HANDLING: i2c transaction failed */
     printf("Failed to write to the i2c bus.\n");
-    return ERROR;
+    return ERROR_WRITE;
   }
   return SUCCESS;
 }
@@ -72,7 +72,7 @@ i2c_state readI2CWord (uint32_t * file, uint8_t * data)
   if(read(*file, data, 2)!=2)
   {
     printf("Failed to read in the buffer\n");
-    return ERROR;
+    return ERROR_READ;
   }
   return SUCCESS;
 }
@@ -83,7 +83,7 @@ i2c_state readI2CDWord (uint32_t * file, uint8_t * data)
   if(read(*file, data, 4)!=4)
   {
     printf("Failed to read in the buffer\n");
-    return ERROR;
+    return ERROR_READ;
   }
   return SUCCESS;
 }
