@@ -7,6 +7,8 @@
 
 #include "i2c_lib.h"
 
+#define LIGHT_STATE_THRESHOLD (2.75)
+
 #define CMDbit           (0x80)
 #define Word_mode        (0xC0)
 
@@ -63,9 +65,7 @@ typedef struct light_data
   apds_state state;
 }Light_Data;
 
-i2c_state write_registers(uint32_t * file);
-
-i2c_state read_registers();
+i2c_state setup_apds9301_registers(uint32_t * file);
 
 i2c_state write_control(uint32_t * file, uint8_t powerState);
 
@@ -81,6 +81,6 @@ i2c_state read_ID_reg(uint32_t * file,uint8_t *id_val);
 
 i2c_state read_lux_values(uint32_t * file, double * lux_value);
 
-apds_state read_light_state();
+i2c_state read_light_state(uint32_t * file, double * lux_value, apds_state *state);
 
 #endif /* APDS9301_H_ */
