@@ -23,17 +23,16 @@
 
 /*synchronisation variables */
 pthread_mutex_t dataQ_mutex;
+pthread_mutex_t tempreqQ_mutex;
 pthread_cond_t condvar;
 mqd_t data_queue_handle;
 mqd_t tempreq_queue_handle;
 mqd_t lightreq_queue_handle;
 struct mq_attr attr;
-struct itimerval timer;
 
 /*global variables and flags*/
-sig_atomic_t flag_mask = 0x00;
-sig_atomic_t flag_mask_copy = 0x00;
-
+sig_atomic_t flag_mask;
+sig_atomic_t flag_mask_copy;
 
 /*Structure definitions*/
 typedef enum loglevel
@@ -58,7 +57,7 @@ void *TempThread(void *);
 void *LightThread(void *);
 void *LoggerThread(void *);
 void *SighandThread(void *);
-void create_timer();
+void create_timer(float timerval);
 void initialize_queue();
 void sighandler_sigint(int signum);
 pthread_t tempThread;
