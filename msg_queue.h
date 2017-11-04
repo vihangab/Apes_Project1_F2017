@@ -23,8 +23,9 @@
 
 /*synchronisation variables */
 pthread_mutex_t dataQ_mutex;
-pthread_mutex_t sighand_mutex;
+//pthread_mutex_t sighand_mutex;
 pthread_cond_t condvar;
+//pthread_cond_t condvar_data;
 mqd_t data_queue_handle;
 mqd_t tempreq_queue_handle;
 mqd_t lightreq_queue_handle;
