@@ -47,14 +47,14 @@ int main()
 	
 	printf("joined sighand thread \n");
 	
-	/*retval = pthread_mutex_destroy(&dataQ_mutex);
+	retval = pthread_mutex_destroy(&dataQ_mutex);
 	if(retval != 0)
 	{
 		printf("mutex destroy failed, error code - %d\n", retval);
 	}
 	else
 		printf("Mutex destroyed \n");
-	*/
+	
 	retval =  pthread_cond_destroy(&condvar);
 	if(retval != 0)
 	{
