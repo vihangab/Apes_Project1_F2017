@@ -12,36 +12,32 @@
 #include<sys/types.h>
 #include<time.h>
 
-/*definitions */
-
+/*Macro definitions */
 #define MAX_SEND_BUFFER 4096
 #define QTemp "/temp"
-#define QLight "/light"
+#define QTemp_Request "/tempreq"
+#define QLight_Request "/lightreq"
+#define TIMER_EVENT 0x02
+#define SIGINT_EVENT 0x01
+
 
 /*synchronisation variables */
-pthread_mutex_t tempq_mutex;
-pthread_mutex_t timer_mutex;
+pthread_mutex_t dataQ_mutex;
+pthread_mutex_t sighand_mutex;
 pthread_cond_t condvar;
-//pthread_mutex_t lightq_mutex = PTHREAD_MUTEX_INITIALIZER;
-mqd_t tempqueue_handle;
-//mqd_t lightqueue_handle;
+mqd_t data_queue_handle;
+mqd_t tempreq_queue_handle;
+mqd_t lightreq_queue_handle;
 struct mq_attr attr;
+struct itimerval timer;
 
-/*global variables */
-sig_atomic_t flag_cond = 0;
+/*global variables and flags*/
+sig_atomic_t flag_mask = 0x00;
+sig_atomic_t flag_mask_copy = 0x00;
 
 
-//uint32_t timer_count = 10;
 
 /*Structure definitions*/
-
-/*typedef enum
-{
-	GET_TEMP_C,
-	GET_LIGHT,
-	LOG_DATA	
-}CMDS;
-*/
 typedef enum loglevel
 {
 	INFO,
@@ -56,7 +52,6 @@ typedef struct logger
 	uint8_t logId;
 	uint8_t *payload;
 	LogLevel level;
-	//uint32_t longlength;
 }LogMsg;
 
 
@@ -64,7 +59,11 @@ typedef struct logger
 void *TempThread(void *);
 void *LightThread(void *);
 void *LoggerThread(void *);
+void *SighandThread(void *);
 void create_timer();
 void initialize_queue();
 void sighandler_sigint(int signum);
-pthread_t tempThread, lightThread,loggerThread;
+pthread_t tempThread;
+pthread_t lightThread;
+pthread_t loggerThread;
+pthread_t sighandThread;
