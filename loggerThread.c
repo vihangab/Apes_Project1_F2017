@@ -13,7 +13,9 @@ void *LoggerThread(void *args)
 		//printf("inside	while of logger thread \n");
 			pthread_mutex_lock(&dataQ_mutex);
 			//keep waiting for timer signal 
+			printf("before cond wait  logger thread \n");
 			pthread_cond_wait(&condvar,&dataQ_mutex);
+			printf("after cond wait  logger thread \n");
 			
 			printf("after cond wait in logger thread\n");
 
@@ -41,22 +43,20 @@ void *LoggerThread(void *args)
 						printf("[LoggerThread] Queue %s currently holds %ld messages\n",QTemp,attr.mq_curmsgs);   
 
 							// Clear buffer
-							
-						
 						memset(logmsg3, 0, sizeof(logmsg3));
-						
 					}
 				}
+				pthread_mutex_unlock(&dataQ_mutex);	
 			}
 			if(flag_mask_copy == SIGINT_EVENT)
 			{
-				
+				printf("closing and breaking from logger thread after sigint \n");
 				mq_close(data_queue_handle);
 				pthread_mutex_unlock(&dataQ_mutex);
+				printf("break from while logger thread \n");
 				//free(logmsg3);
 				break;
 			}
-			pthread_mutex_unlock(&dataQ_mutex);	
-	}	
-	
+	}
+	printf("return from logger thread \n");	
 }

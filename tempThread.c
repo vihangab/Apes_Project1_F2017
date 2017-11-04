@@ -23,12 +23,13 @@ void *TempThread(void *args)
 		
 		
 		logmsg1->payload = buffer;
-		pthread_mutex_lock (&dataQ_mutex);
+		pthread_mutex_lock(&dataQ_mutex);
 		
 		
 		//keep waiting for timer signal 
-		
+		printf("before cond wait  temp thread \n");
 		pthread_cond_wait(&condvar,&dataQ_mutex);
+		printf("after cond wait  logger thread \n");
 		
 		
 		if(flag_mask_copy == TIMER_EVENT)
@@ -38,17 +39,19 @@ void *TempThread(void *args)
 			{
 				perror ("[TempThread] Sending:");
 			}
-			
-			pthread_mutex_unlock (&dataQ_mutex);
+			pthread_mutex_unlock(&dataQ_mutex);
 			
 		}
 		
 		if(flag_mask_copy == SIGINT_EVENT)
 		{
+			printf("closing and breaking from temp thread after sigint \n");
 			mq_close (data_queue_handle);
 			pthread_mutex_unlock(&dataQ_mutex);
 			free(logmsg1);
+			printf("break from while temp thread \n");
 			break;
 		}
 	} 
+	printf("return from temp thread \n");
 }
