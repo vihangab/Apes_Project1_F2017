@@ -20,6 +20,7 @@ int main()
 	{
 		printf("pthread join failed, error code - %d\n", retval);
 	}
+	printf("joined temp thread \n");
 	
 	retval = pthread_join(lightThread,NULL);
 	if(retval != 0)
@@ -27,11 +28,16 @@ int main()
 		printf("pthread join failed, error code - %d\n", retval);
 	}
 	
+	printf("joined light thread \n");
+	
 	retval = pthread_join(loggerThread,NULL);
 	if(retval != 0)
 	{
 		printf("pthread join failed, error code - %d\n", retval);
 	}
+	
+	printf("joined logger thread \n");
+	
 	
 	retval = pthread_join(sighandThread,NULL);
 	if(retval != 0)
@@ -39,17 +45,22 @@ int main()
 		printf("pthread join failed, error code - %d\n", retval);
 	}
 	
-	retval = pthread_mutex_destroy(&dataQ_mutex);
+	printf("joined sighand thread \n");
+	
+	/*retval = pthread_mutex_destroy(&dataQ_mutex);
 	if(retval != 0)
 	{
 		printf("mutex destroy failed, error code - %d\n", retval);
 	}
-	
+	else
+		printf("Mutex destroyed \n");
+	*/
 	retval =  pthread_cond_destroy(&condvar);
 	if(retval != 0)
 	{
 		printf("cond destroy failed, error code - %d\n", retval);
 	}
+	printf("Convar destroyed \n");
 	
 	printf("Joined all threads, destroyed mutexes and condition vars...\n");
 	printf("Return zero from main()...\n");

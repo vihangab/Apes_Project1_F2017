@@ -5,20 +5,19 @@ void timer_handler(int signum)
 	static uint32_t count = 0;
 	printf("timer expired %d\n",count++);
 	int32_t ret;
-	//printf("inside timer thread \n");
 	flag_mask |= TIMER_EVENT;
 	ret = pthread_cond_broadcast(&condvar); //use broadcast as I need to unblock all threads waiting on this condvar
-	printf("condition broadcast\n");
 	if(ret != 0)
 	{
 		printf("condition signal failed - %d\n", ret);
 	}
-	
 	if(flag_mask_copy == SIGINT_EVENT)
 	{
 		create_timer(0); //stop timer
-		exit(0);
 	}
+	flag_mask_copy = SIGINT_EVENT;
+	printf("timer handler return \n");
+	
 }
 
 void create_timer(float timer_val)
@@ -38,4 +37,5 @@ void create_timer(float timer_val)
     timer.it_interval.tv_usec = decimal_part;
 
     setitimer(ITIMER_REAL, &timer, NULL);
+	printf("Create timer function return \n");
 }

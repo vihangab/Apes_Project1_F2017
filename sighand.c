@@ -15,6 +15,7 @@ void *SighandThread(void *args)
 			if (flag_mask & SIGINT_EVENT)
             {
                 flag_mask ^= SIGINT_EVENT;
+				printf("break from while sighand thread \n");
 				break;
             }
 		}
@@ -22,8 +23,9 @@ void *SighandThread(void *args)
 		{
 			pthread_cond_wait(&condvar,&dataQ_mutex);
 		}
-		
 	}
+	pthread_mutex_unlock(&dataQ_mutex);
+	printf("return from sighand thread \n");
 }
 
 void sighandler_sigint(int signum)
@@ -35,4 +37,5 @@ void sighandler_sigint(int signum)
 	{
 		printf("condition signal failed, error code - %d\n", retval);
 	}
+	printf("return from sigint sighandler \n");
 }
