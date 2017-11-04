@@ -7,7 +7,7 @@ void initialize_queue()
 	
 	// unlink the queue if it exists - debug
 	mq_unlink (QTemp);
-	mq_unlink (QTemp_Request);
+	//mq_unlink (QTemp_Request);
 	//mq_unlink (QLight_Request);
 	
 	attr.mq_maxmsg = 20;
@@ -16,7 +16,7 @@ void initialize_queue()
 
 	
 	data_queue_handle=  mq_open(QTemp,O_RDWR | O_CREAT,0666,&attr);
-	tempreq_queue_handle = mq_open(QTemp_Request,O_RDWR | O_CREAT,0666,&attr);
+	//tempreq_queue_handle = mq_open(QTemp_Request,O_RDWR | O_CREAT,0666,&attr);
 	//lightreq_queue_handle = mq_open(QLight_Request,O_RDWR | O_CREAT,0666,&attr);
 
 	if (data_queue_handle == -1)
@@ -33,4 +33,5 @@ void initialize_queue()
 	{
 		perror ("[LightThread] Error Opening Light Request Q: ");
 	}
+	printf("init queue return \n");
 }
