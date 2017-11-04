@@ -2,48 +2,33 @@
 
 void *SighandThread(void *args)
 {	
-	//pthread_mutex_lock(&sighand_mutex); //outside while loop as i do not want recursive locking
 	while(1)
 	{
 		if(flag_mask)
 		{
 			flag_mask_copy = flag_mask;
-			//pthread_mutex_unlock(&sighand_mutex);
-			//unlock  mutext here as i am allowing the flag mask to be changed by another another external signal that is called
 			if (flag_mask & TIMER_EVENT)
             {
-                //printf("TIMER Event in common handler\n");
-				//printf("flag mask before xor in timer event %d\n",flag_mask);
-                flag_mask ^= TIMER_EVENT;
-				//printf("flag mask after xor in timer event%d\n",flag_mask);				
+                flag_mask ^= TIMER_EVENT;		
             }
 			
 			if (flag_mask & SIGINT_EVENT)
             {
-                //printf("SIGINT Event in common handler\n");
-				//printf("flag mask before xor in sigint event%d\n",flag_mask);
                 flag_mask ^= SIGINT_EVENT;
-				//printf("flag mask after xor in sigint event%d\n",flag_mask);
-				//since this is a closing handler break the loop
-				//pthread_mutex_lock(&sighand_mutex); //unlock mutex as you are ending everything
+				
 				timer.it_value.tv_sec = 0;
 				timer.it_value.tv_usec = 0;
 				timer.it_interval.tv_sec = 0;
-				timer.it_interval.tv_usec = 500000;
+				timer.it_interval.tv_usec = 0;
 				break;
             }
-			//pthread_mutex_lock(&sighand_mutex);  //lock the mutex back as now you again want to protect your flag_mask
 		}
 		else
 		{
-			
-			//printf("before cond wait in of sighand mutex\n");
 			pthread_cond_wait(&condvar,&dataQ_mutex);
-			//printf("after cond wait in of sighand mutex\n");
 		}
 		
 	}
-	//pthread_mutex_unlock(&sighand_mutex);
 }
 
 void sighandler_sigint(int signum)
@@ -62,9 +47,7 @@ void timer_handler(int signum)
 	static uint32_t count = 0;
 	printf("timer expired %d\n",count++);
 	int32_t ret;
-	printf("inside	timer thread \n");
-	//printf("flag mask copy before flag mask set for timer event %d \n",flag_mask_copy);
-	//printf("flag mask before flag mask set for timer event %d \n",flag_mask);
+	//printf("inside timer thread \n");
 	flag_mask |= TIMER_EVENT;
 	ret = pthread_cond_broadcast(&condvar); //use broadcast as I need to unblock all threads waiting on this condvar
 	printf("condition broadcast\n");
@@ -72,8 +55,7 @@ void timer_handler(int signum)
 	{
 		printf("condition signal failed - %d\n", ret);
 	}
-	//printf("flag mask copy after flag mask set for timer event%d \n",flag_mask_copy);
-	//printf("flag mask after flag mask set for timer event%d \n",flag_mask);
+	
 	if(flag_mask_copy == SIGINT_EVENT)
 	{
 		timer.it_value.tv_sec = 0;
@@ -117,21 +99,18 @@ void *LoggerThread(void *args)
 		//printf("inside	while of logger thread \n");
 			pthread_mutex_lock(&dataQ_mutex);
 			//keep waiting for timer signal 
-			printf("before cond wait in logger thread\n");
 			pthread_cond_wait(&condvar,&dataQ_mutex);
-			//pthread_cond_wait(&condvar,&dataQ_mutex);
+			
 			printf("after cond wait in logger thread\n");
-			//printf("flag mask copy %d \n",flag_mask_copy);
-			//printf("flag mask %d \n",flag_mask);
+
 			if(flag_mask_copy == TIMER_EVENT)
 			{
-				//printf("after checking fla_mask_copy for timer event \n");
+
 				mq_getattr(data_queue_handle, &attr);
 				while(attr.mq_curmsgs > 0)
 				{
 					bytes_read = mq_receive(data_queue_handle, (char *)&logmsg3, MAX_SEND_BUFFER, &data_to_log);
-					//printf("Bytes received = %d\n",bytes_read);
-					//printf("Size of  = %ld\n",sizeof(LogMsg));
+				
 					if (bytes_read == -1)
 					{
 						perror("[LoggerThread] Failed to recieve:");
@@ -149,7 +128,7 @@ void *LoggerThread(void *args)
 
 							// Clear buffer
 							
-						//memset(buffer, 0, MAX_SEND_BUFFER); 
+						
 						memset(logmsg3, 0, sizeof(logmsg3));
 						
 					}
@@ -157,7 +136,7 @@ void *LoggerThread(void *args)
 			}
 			if(flag_mask_copy == SIGINT_EVENT)
 			{
-				//printf("after checking fla_mask_copy for sigint event \n");
+				
 				mq_close(data_queue_handle);
 				pthread_mutex_unlock(&dataQ_mutex);
 				//free(logmsg3);
@@ -189,36 +168,30 @@ void *TempThread(void *args)
 		
 		snprintf (buffer, MAX_SEND_BUFFER, "Message from Temp thread");
 		
-		//printf ("Message from Temp thread %s\n",logmsg1->payload);
+		
 		logmsg1->payload = buffer;
 		pthread_mutex_lock (&dataQ_mutex);
 		
-		//printf("before cond wait in temp thread\n");
+		
 		//keep waiting for timer signal 
-		//printf("before cond wait in temp thread\n");
+		
 		pthread_cond_wait(&condvar,&dataQ_mutex);
-		//pthread_cond_wait(&condvar,&dataQ_mutex);
-		//printf("after cond wait in temp thread\n");
-		//pthread_cond_wait(&condvar,&dataQ_mutex);
-		//printf("flag mask copy %d \n",flag_mask_copy);
-		//printf("flag mask %d \n",flag_mask);
+		
+		
 		if(flag_mask_copy == TIMER_EVENT)
 		{
-		
-			//printf("after checking fla_mask_copy for timer event \n");
 			
 			if ((bytes_sent = mq_send (data_queue_handle,(const char*)&logmsg1, sizeof(logmsg1), msgprio)) != 0)
 			{
 				perror ("[TempThread] Sending:");
 			}
-			//printf("Bytes sent = %d\n",bytes_sent);
+			
 			pthread_mutex_unlock (&dataQ_mutex);
 			
 		}
 		
 		if(flag_mask_copy == SIGINT_EVENT)
 		{
-			//printf("after checking fla_mask_copy for sigint event \n");
 			mq_close (data_queue_handle);
 			pthread_mutex_unlock(&dataQ_mutex);
 			free(logmsg1);
@@ -242,6 +215,7 @@ void *LightThread(void *args)
 	while(1)
 	{
 		//printf("inside	while of light thread \n");
+		
 		//generate timestamp string
 		time_t curr_time = time(NULL);
 		logmsg2->timestamp = ctime(&curr_time);
@@ -249,24 +223,19 @@ void *LightThread(void *args)
 		logmsg2->level = WARNING;
 
 		snprintf (buffer, MAX_SEND_BUFFER, "Message from Light thread");
-		//printf ("Message from Light thread %s \n",logmsg2->payload);
+		
 		logmsg2->payload = buffer;
 		
-		//pthread_mutex_lock (&lightq_mutex);
-		//printf("Size of  sent logmsg 2= %ld\n",sizeof(logmsg2));
+		
 		pthread_mutex_lock(&dataQ_mutex);
 		
 		//keep waiting for timer signal 
-		//pthread_cond_wait(&condvar,&dataQ_mutex);
-		//printf("before cond wait in temp thread\n");
+		
 		pthread_cond_wait(&condvar,&dataQ_mutex);
-		//pthread_cond_wait(&condvar,&dataQ_mutex);
-		//printf("after cond wait in temp thread\n");
-		//printf("flag mask copy %d \n",flag_mask_copy);
-		//printf("flag mask %d \n",flag_mask);
+		
 		if(flag_mask_copy == TIMER_EVENT)
 		{
-			//printf("after checking fla_mask_copy for timer event \n");
+			
 			if ((bytes_sent = mq_send (data_queue_handle,(const char*)&logmsg2, sizeof(logmsg2), msgprio)) != 0) //can be changed later to light queue handle
 			{
 				perror ("[LightThread] Sending:");
@@ -276,8 +245,6 @@ void *LightThread(void *args)
 		
 		if(flag_mask_copy == SIGINT_EVENT)
 		{
-
-			//printf("after checking fla_mask_copy for sigint event \n");
 			pthread_mutex_unlock(&dataQ_mutex);
 			free(logmsg2);
 			break;
@@ -290,7 +257,6 @@ void initialize_queue()
 {
 	pthread_mutex_init(&dataQ_mutex,NULL);
 	pthread_cond_init(&condvar,NULL);
-	//pthread_cond_init(&condvar_data,NULL);
 	
 	// unlink the queue if it exists - debug
 	mq_unlink (QTemp);
