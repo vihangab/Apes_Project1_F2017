@@ -13,7 +13,7 @@ void *LightThread(void *args)
 
 	while(1)
 	{
-		//printf("inside	while of light thread \n");
+		printf("inside while of light thread \n");
 		
 		//generate timestamp string
 		time_t curr_time = time(NULL);
@@ -25,13 +25,12 @@ void *LightThread(void *args)
 		
 		logmsg2->payload = buffer;
 		
-		
 		pthread_mutex_lock(&dataQ_mutex);
 		
 		//keep waiting for timer signal 
-		
+		printf("before cond wait  light thread \n");
 		pthread_cond_wait(&condvar,&dataQ_mutex);
-		
+		printf("after cond wait  light thread \n");
 		if(flag_mask_copy == TIMER_EVENT)
 		{
 			
@@ -39,15 +38,17 @@ void *LightThread(void *args)
 			{
 				perror ("[LightThread] Sending:");
 			}
-			pthread_mutex_unlock (&dataQ_mutex);
+			pthread_mutex_unlock(&dataQ_mutex);
 		}
 		
 		if(flag_mask_copy == SIGINT_EVENT)
 		{
+			printf("closing and breaking from light thread after sigint \n");
 			pthread_mutex_unlock(&dataQ_mutex);
 			free(logmsg2);
+			printf("break from while light thread \n");
 			break;
 		}
-	} 
-	
+	}
+	printf("return light thread \n");
 }
