@@ -13,21 +13,22 @@
 #include<time.h>
 
 /*Macro definitions */
-#define MAX_SEND_BUFFER 4096
-#define QTemp "/temp"
-#define QTemp_Request "/tempreq"
-#define QLight_Request "/lightreq"
-#define TIMER_EVENT 0x02
+#define MAX_SEND_BUFFER 100
+#define QLog "/log"
+#define QMain "/main"
+
 #define SIGINT_EVENT 0x01
+#define ASYNC_EVENT 0x04
+#define TIMER_EVENT 0x02
 
 
 /*synchronisation variables */
 pthread_mutex_t dataQ_mutex;
-pthread_mutex_t tempreqQ_mutex;
+pthread_mutex_t mainQ_mutex;
+pthread_mutex_t logQ_mutex;
 pthread_cond_t condvar;
 mqd_t data_queue_handle;
-mqd_t tempreq_queue_handle;
-mqd_t lightreq_queue_handle;
+mqd_t main_queue_handle;
 struct mq_attr attr;
 
 /*global variables and flags*/
@@ -35,6 +36,15 @@ sig_atomic_t flag_mask;
 sig_atomic_t flag_mask_copy;
 
 /*Structure definitions*/
+
+typedef enum{
+  MAIN,
+  TEMP,
+  LIGHT,
+  LOGGER
+}Sources;
+ 
+
 typedef enum loglevel
 {
 	INFO,
@@ -46,9 +56,9 @@ typedef enum loglevel
 typedef struct logger
 {
 	uint8_t *timestamp;
-	uint8_t logId;
 	uint8_t *payload;
 	LogLevel level;
+	Sources sourceId;
 }LogMsg;
 
 

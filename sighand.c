@@ -5,41 +5,52 @@ void *SighandThread(void *args)
 	pthread_mutex_lock(&dataQ_mutex);
 	while(1)
 	{
-		
 		if(flag_mask)
 		{
-			flag_mask_copy = flag_mask;
-			
 			pthread_mutex_unlock(&dataQ_mutex);
+			flag_mask_copy = flag_mask;
 			
 			if (flag_mask & TIMER_EVENT)
             {
                 flag_mask ^= TIMER_EVENT;		
             }
 			
+			if (flag_mask & ASYNC_EVENT)
+            {
+                flag_mask ^= ASYNC_EVENT;
+            }
 			if (flag_mask & SIGINT_EVENT)
             {
-                flag_mask ^= SIGINT_EVENT;
+				flag_mask ^= SIGINT_EVENT;
 				printf("break from while sighand thread \n");
 				pthread_mutex_lock(&dataQ_mutex);
 				break;
             }
+			printf("break sighand before else thread \n");
 			pthread_mutex_lock(&dataQ_mutex);
 		}
 		else
 		{
+			printf("before cond wait in sighand \n");
 			pthread_cond_wait(&condvar,&dataQ_mutex);
 		}
 	}
 	pthread_mutex_unlock(&dataQ_mutex);
+	
+	
+	
 	printf("return from sighand thread \n");
 }
 
 void sighandler_sigint(int signum)
 {
 	printf("Caught signal sigint, coming out...\n");
+	pthread_mutex_lock(&dataQ_mutex);
+	
 	flag_mask |= SIGINT_EVENT;	//set flag for SIGINT event
 	int32_t retval = pthread_cond_broadcast(&condvar);
+	
+	pthread_mutex_unlock(&dataQ_mutex);
 	if(retval != 0)
 	{
 		printf("condition signal failed, error code - %d\n", retval);

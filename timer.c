@@ -5,19 +5,23 @@ void timer_handler(int signum)
 	static uint32_t count = 0;
 	printf("timer expired %d\n",count++);
 	int32_t ret;
+	pthread_mutex_lock(&dataQ_mutex);
+	
 	flag_mask |= TIMER_EVENT;
 	ret = pthread_cond_broadcast(&condvar); //use broadcast as I need to unblock all threads waiting on this condvar
+	
+	pthread_mutex_unlock(&dataQ_mutex);
 	if(ret != 0)
 	{
 		printf("condition signal failed - %d\n", ret);
 	}
-	if(flag_mask_copy == SIGINT_EVENT)
+	if(flag_mask_copy & SIGINT_EVENT)
 	{
+		printf("clear timer \n");
 		create_timer(0); //stop timer
+
 	}
-	flag_mask_copy = SIGINT_EVENT;
 	printf("timer handler return \n");
-	
 }
 
 void create_timer(float timer_val)
