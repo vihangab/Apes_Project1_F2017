@@ -1,16 +1,16 @@
-CC=gcc
+CC= arm-linux-gnueabihf-gcc
 CFLAGS= -g -O0 -pthread
 LFLAGS= -lm -lrt
 
-SSRCS= main.c sighand.c timer.c tempThread.c lightThread.c loggerThread.c initialise_queue.c
-#headers=
+SSRCS= main.c initialise_queue.c loggerThread.c tempThread.c lightThread.c sighand.c timer.c logger.c i2c_lib.c apds9301.c tmp102.c gpio.c
+#headers=i2c_lib.h apds9301.h
 
-PROGRAMS=msg_queue
+PROGRAMS=test
 
 #Default make command builds executable file
 all: $(PROGRAMS)
 
-msg_queue: $(SSRCS)
+test: $(SSRCS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LFLAGS)
 
 .PHONY: clean
