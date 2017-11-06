@@ -10,7 +10,6 @@
 *               -logger_state log_integer(FILE *fptr,uint32_t val)
 *               -logger_state log_float(FILE *fptr,double val)
 ***************************************************************************/
-
 #ifndef LOGGER_H_
 #define LOGGER_H_
 

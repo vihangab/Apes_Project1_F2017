@@ -108,8 +108,4 @@ logger_state log_float(FILE *fptr,double val){
 	char storage[15] = {(uint8_t)'\0'};
 	/* Function to convert floating point value to ascii */
 	sprintf(storage,"%0.3f",val);
-	if(fwrite(storage,strlen(storage),1,fptr)<0){
-		return WRITE_ERROR;
-	}
-	return DONE;
-}
+	if(fwrite(sto

@@ -146,13 +146,11 @@ i2c_state read_lux_values(uint32_t * file, double * lux_value)
   }else if(readI2CWord(file,ch1_data)==ERROR_READ){
     return ERROR_READ;
   }
-
-  printf("%s\n","Sent command");
   ch0 = ch0_data[1]<<8 | ch0_data[0];
   ch1 = ch1_data[1]<<8 | ch1_data[0];
-  printf("CH0 - %f, CH1 - %f\n", ch0,ch1);
+  //printf("CH0 - %f, CH1 - %f\n", ch0,ch1);
   ratio = ch1/ch0;
-  printf("Ratio - %f\n", ratio);
+  //printf("Ratio - %f\n", ratio);
   if((ratio)>0 && (ratio<=0.5)){
     *lux_value = (0.0304*ch0)-(0.062*ch0*pow(ratio,1.4));
   }else if(ratio<=0.61){
@@ -168,18 +166,20 @@ i2c_state read_lux_values(uint32_t * file, double * lux_value)
 }
 
 //Function to find light state based on luc values
-i2c_state read_light_state(uint32_t * file, double * lux_value, apds_state *state)
+i2c_state read_light_state(uint32_t * file, apds_state *light_state)
 {
   if(file == NULL){
     return NULL_POINTER;
   }
-  if(*lux_value < 0){
+  double lux_value;
+  i2c_state state;
+  if((state = read_lux_values(file,&lux_value))!=SUCCESS){
     return ERROR_VALUE;
   }
-  if(*lux_value > LIGHT_STATE_THRESHOLD){
-    *state = LIGHT;
+  if(lux_value > LIGHT_STATE_THRESHOLD){
+    *light_state = LIGHT;
   }else{
-    *state = DARK;
+    *light_state = DARK;
   }
   return SUCCESS;
 }

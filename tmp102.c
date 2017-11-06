@@ -7,7 +7,7 @@ Description - Source file for out TMP 102 library
 #include <stdio.h>
 #include <stdlib.h>
 #include "i2c_lib.h"
-#include "tmp106.h"
+#include "tmp102.h"
 
 i2c_state setup_tmp102_registers(uint32_t *file)
 {

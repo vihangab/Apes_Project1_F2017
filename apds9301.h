@@ -81,6 +81,6 @@ i2c_state read_ID_reg(uint32_t * file,uint8_t *id_val);
 
 i2c_state read_lux_values(uint32_t * file, double * lux_value);
 
-i2c_state read_light_state(uint32_t * file, double * lux_value, apds_state *state);
+i2c_state read_light_state(uint32_t * file, apds_state *state);
 
 #endif /* APDS9301_H_ */
