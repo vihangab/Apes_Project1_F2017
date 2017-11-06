@@ -4,9 +4,10 @@ int main()
 {
 	flag_mask = 0;
 	flag_mask_copy = 0;
-	heartbeat_flag = 0x7;
+	heartbeat_flag = 0x0;
 	int32_t retval = 0;
-
+  int32_t alive;
+	char threadName[20];
 	pthread_mutex_init(&dataQ_mutex,NULL);
 	pthread_mutex_init(&logQ_mutex,NULL);
 	pthread_mutex_init(&mainQ_mutex,NULL);
@@ -57,8 +58,11 @@ int main()
 	uint32_t bytes_read = 0;
 	uint32_t data_to_log=0;
 
-	LogMsg *logmsg0;
+	LogMsg *logmsg0,*logmsg00;
 	if(create_log_struct(&logmsg0)!=DONE){
+		printf("%s\n","Error creating struct");
+	}
+	if(create_log_struct(&logmsg00)!=DONE){
 		printf("%s\n","Error creating struct");
 	}
   timer_t heartTimer;
@@ -78,6 +82,39 @@ int main()
 			mq_close(main_queue_handle);
 			//free(logmsg0);
 			break;
+		}
+
+    if(flag_mask_copy & TIMER_EVENT){
+      if((alive = pthread_kill(tempThread, 0))==3) //Check with ERSCH flag
+			{
+				printf("%s\n","Temp Thread Dead");
+				strcpy(threadName,taskNames[1]);
+				pinSet(led_path);
+			}else if((alive = pthread_kill(loggerThread, 0))==3)
+			{
+				printf("%s\n","Logger Thread Dead");
+				strcpy(threadName,taskNames[3]);
+				pinSet(led_path);
+			}else if((alive = pthread_kill(lightThread, 0))==3)
+			{
+				printf("%s\n","Light Thread Dead");
+				strcpy(threadName,taskNames[2]);
+				pinSet(led_path);
+			}
+
+			if(alive == 3){
+				logmsg00->sourceId = MAIN_TASK;
+				logmsg00->level = ALERT;
+				logmsg00->requestID = LOG_DATA;
+				logmsg00->timestamp = time(NULL);
+				sprintf(logmsg00->payload,"%s thread dead",threadName);
+				pthread_mutex_lock(&logQ_mutex);
+				if ((bytes_sent = mq_send (data_queue_handle,(const char*)&logmsg00, sizeof(LogMsg), 2)) != 0) //can be changed later to light queue handle
+				{
+					perror ("[MainThread] Sending:");
+				}
+				pthread_mutex_unlock(&logQ_mutex);
+			}
 		}
 
 		if(flag_mask_copy & ASYNC_EVENT)
@@ -112,6 +149,8 @@ int main()
 		          	case HEARTBEAT:
 								    break;
 
+                case DECIDE:
+								    break;
 								default:
 								    break;
 		          }
