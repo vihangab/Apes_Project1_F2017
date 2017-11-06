@@ -21,12 +21,33 @@ int main()
 
 	signal(SIGINT, sighandler_sigint);
 	signal(SIGUSR1, sighandler_sigusr1);
-  pthread_create(&loggerThread,NULL,&LoggerThread,NULL);
+  retval = pthread_create(&loggerThread,NULL,&LoggerThread,NULL);
+  //retval = 1;
+	if(retval != 0)
+	{
+		printf("Thread Creation failed, error code - %d\n", retval);
+		pinSet(led_path);
+	}
 	sleep(1);
-	pthread_create(&tempThread,NULL,&TempThread,NULL);
-	pthread_create(&lightThread,NULL,&LightThread,NULL);
-	pthread_create(&sighandThread,NULL,&SighandThread,NULL); //common signal handler for all events
+	retval = pthread_create(&tempThread,NULL,&TempThread,NULL);
+	if(retval != 0)
+	{
+		printf("Thread Creation failed, error code - %d\n", retval);
+		pinSet(led_path);
+	}
+	retval = pthread_create(&lightThread,NULL,&LightThread,NULL);
+	if(retval != 0)
+	{
+		printf("Thread Creation failed, error code - %d\n", retval);
+		pinSet(led_path);
+	}
+  retval =	pthread_create(&sighandThread,NULL,&SighandThread,NULL); //common signal handler for all events
+	if(retval != 0)
+	{
+		printf("Thread Creation failed, error code - %d\n", retval);
+		pinSet(led_path);
 
+	}
 	create_interval_timer(2);
 
 	char buffer[MAX_SEND_BUFFER];
@@ -43,7 +64,6 @@ int main()
   timer_t heartTimer;
 	logmsg0->requestID=100;
   //create_timer(6,heartTimer);
-
 	while(1)
 	{
 		pthread_mutex_lock(&dataQ_mutex);
